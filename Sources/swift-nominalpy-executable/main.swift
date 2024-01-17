@@ -1,0 +1,2 @@
+import SwiftNominalpyExample
+SwiftNominalpyExample.run()
