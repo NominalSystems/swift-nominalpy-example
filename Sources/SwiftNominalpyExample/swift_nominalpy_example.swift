@@ -1,41 +1,41 @@
-/*
+    /*
                     [ NOMINAL SYSTEMS ]
-This code is developed by Nominal Systems to aid with communication
-to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+    This code is developed by Nominal Systems to aid with communication
+    to the public API. All code is under the the license provided along
+    with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
-This example shows how the NominalPy module can be accessed in
-Swift Via PythonKit.
+    This example shows how the NominalPy module can be accessed in
+    Swift Via PythonKit.
 
-The scenario is of a spacecraft with a solar panel and a
-sun pointing ADCS system that orients the spacecraft to face
-its solar panel towards the sun, using a flight software chain.
-The solar panel power and pointing error are exported as text files.
-*/
+    The scenario is of a spacecraft with a solar panel and a
+    sun pointing ADCS system that orients the spacecraft to face
+    its solar panel towards the sun, using a flight software chain.
+    The solar panel power and pointing error are exported as text files.
+    */
 
-import Foundation
-import PythonKit
+    import Foundation
+    import PythonKit
 
-public struct SwiftNominalpyExample {
+    public struct SwiftNominalpyExample {
 
     public static func run()
     {
         // Import Required NominalPy Modules
-        let nominalpy = Python.import("nominalpy")
-        let credentials = Python.import("nominalpy.connection.credentials")
-        let simulation = Python.import("nominalpy.objects.simulation")
-        let astro = Python.import("nominalpy.maths.astro")
+        let nominalpyModule = Python.import("nominalpy")
+        let credentialsModule = Python.import("nominalpy.connection.credentials")
+        let simulationModule = Python.import("nominalpy.objects.simulation")
+        let astroModule = Python.import("nominalpy.maths.astro")
 
         // Import Required Python Modules
-        let datetime = Python.import("datetime")
-        let np = Python.import("numpy")
-        let json = Python.import("json")
-        let py = Python.import("builtins")
+        let datetimeModule = Python.import("datetime")
+        let numpyModule = Python.import("numpy")
+        let jsonModule = Python.import("json")
+        let builtinsModule = Python.import("builtins")
 
-
-        let tick_size=0.05
-        let tick_iterations=2000
-        let data_sample_rate=5.0
+        //Simulation Parameters
+        let tickSize=0.05
+        let tickIterations=2000
+        let dataSampleRate=5.0
 
         // Set up the API access
         let url = "https://api.nominalsys.com"
@@ -46,84 +46,84 @@ public struct SwiftNominalpyExample {
             print("Nominal API Key Imported")
 
             // Connect to the Nominal API
-            let auth: PythonObject = credentials.Credentials(url,port,apiKey)
-            let sim: PythonObject = simulation.Simulation(auth)
+            let auth: PythonObject = credentialsModule.Credentials(url,port,apiKey)
+            let sim: PythonObject = simulationModule.Simulation(auth)
             print("Connected to Nominal API")
 
             print("Configuring the Simulation")
             //Configure the Universe with an epoch
-            let types = nominalpy.types
-            let universe = sim.get_system(types.UNIVERSE, Epoch: datetime.datetime(2022, 1, 1))
+            let types = nominalpyModule.types
+            let universe = sim.get_system(types.UNIVERSE, Epoch: datetimeModule.datetime(2022, 1, 1))
 
             //Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
-            let orbit: PythonObject = astro.classical_to_vector_elements(6671, inclination: 35, true_anomaly: 16)
+            let orbit: PythonObject = astroModule.classical_to_vector_elements(6671, inclination: 35, true_anomaly: 16)
 
             //Add the spacecraft
             let spacecraft: PythonObject = sim.add_component(types.SPACECRAFT,
                 TotalMass: 750.0,
-                TotalCenterOfMass: np.array([0, 0, 0]),
-                TotalMomentOfInertia: np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
+                TotalCenterOfMass: numpyModule.array([0, 0, 0]),
+                TotalCenterOfMassB_B: numpyModule.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
                 Position: orbit[0],
                 Velocity: orbit[1],
-                AttitudeRate: np.array([0.2, 0.1, 0.05]))
+                AttitudeRate: numpyModule.array([0.2, 0.1, 0.05]))
 
             //Add reaction wheels
-            let reaction_wheels: PythonObject = sim.add_component("ReactionWheelArray",spacecraft)
+            let reactionWheels: PythonObject = sim.add_component("ReactionWheelArray",spacecraft)
 
-            let rw1: PythonObject = sim.add_component("ReactionWheel",reaction_wheels,WheelSpinAxis_B:np.array([1,0,0]))
-            let rw2: PythonObject = sim.add_component("ReactionWheel",reaction_wheels,WheelSpinAxis_B:np.array([0,1,0]))
-            let rw3: PythonObject = sim.add_component("ReactionWheel",reaction_wheels,WheelSpinAxis_B:np.array([0,0,1]))
+            let rw1: PythonObject = sim.add_component("ReactionWheel",reactionWheels,WheelSpinAxis_B:numpyModule.array([1,0,0]))
+            let rw2: PythonObject = sim.add_component("ReactionWheel",reactionWheels,WheelSpinAxis_B:numpyModule.array([0,1,0]))
+            let rw3: PythonObject = sim.add_component("ReactionWheel",reactionWheels,WheelSpinAxis_B:numpyModule.array([0,0,1]))
 
             //Add a simple Navigator
             let navigator: PythonObject = sim.add_component("SimpleNavigator",spacecraft)
 
             //Add a Solar Panel
-            let solar_panel: PythonObject = sim.add_component("SolarPanel",spacecraft,Area:0.01,Efficiency:0.23)
+            let solarPanel: PythonObject = sim.add_component("SolarPanel",spacecraft,Area:0.01,Efficiency:0.23)
 
             //Add in Sun Safe Pointing
-            let sun_point_fsw: PythonObject = sim.add_component("SunSafePointingSoftware",spacecraft,
-                minUnitMag:0.001,
+            let sunPointFsw: PythonObject = sim.add_component("SunSafePointingSoftware",spacecraft,
+                MinUnitMag:0.001,
                 SmallAngle:0.001,
-                SunBodyVector:solar_panel.get_value("LocalUp"),
-                Omega_RN_B:np.array([0,0,0]),
+                SunBodyVector:solarPanel.get_value("LocalUp"),
+                Omega_RN_B:numpyModule.array([0,0,0]),
                 SunAxisSpinRate:0.0,
                 In_NavAttMsg:navigator.get_value("Out_NavAttMsg"),
                 In_SunDirectionMsg:navigator.get_value("Out_NavAttMsg"))
 
             //Add in the MRP feedback software
-            let mrp_feedback_fsw: PythonObject = sim.add_component("MRPFeedbackSoftware", spacecraft,
+            let mrpFeedbackFsw: PythonObject = sim.add_component("MRPFeedbackSoftware", spacecraft,
                 K:3.5,
                 P:30.0,
                 Ki:-1.0,
                 IntegralLimit:-20,
-                In_RWSpeedMsg:reaction_wheels.get_value("Out_RWSpeedMsg"),
-                In_RWArrayConfigMsg:reaction_wheels.get_value("Out_RWArrayConfigMsg"),
-                In_AttGuidMsg:sun_point_fsw.get_value("Out_AttGuidMsg"),
+                In_RWSpeedMsg:reactionWheels.get_value("Out_RWSpeedMsg"),
+                In_RWArrayConfigMsg:reactionWheels.get_value("Out_RWArrayConfigMsg"),
+                In_AttGuidMsg:sunPointFsw.get_value("Out_AttGuidMsg"),
                 In_VehicleConfigMsg:spacecraft.get_value("Out_VehicleConfigMsg"))
 
             //Add in the motor torque software
-            let motor_torque_fsw: PythonObject = sim.add_component("ReactionWheelMotorTorqueSoftware",spacecraft,
-                In_CmdTorqueBodyMsg:mrp_feedback_fsw.get_value("Out_CmdTorqueBodyMsg"),
-                In_RWArrayConfigMsg:reaction_wheels.get_value("Out_RWArrayConfigMsg"))
+            let motorTorqueFsw: PythonObject = sim.add_component("ReactionWheelMotorTorqueSoftware",spacecraft,
+                In_CmdTorqueBodyMsg:mrpFeedbackFsw.get_value("Out_CmdTorqueBodyMsg"),
+                In_RWArrayConfigMsg:reactionWheels.get_value("Out_RWArrayConfigMsg"))
 
             //Connect up to the reaction wheels
-            reaction_wheels.set_value("In_ArrayMotorTorqueMsg", motor_torque_fsw.get_value("Out_ArrayMotorTorqueMsg"))
+            reactionWheels.set_value("In_ArrayMotorTorqueMsg", motorTorqueFsw.get_value("Out_ArrayMotorTorqueMsg"))
 
             //Register some messages to be stored in a database
-            spacecraft.get_message("Out_EclipseMsg").subscribe(data_sample_rate)
-            navigator.get_message("Out_NavAttMsg").subscribe(data_sample_rate)
-            sun_point_fsw.get_message("Out_AttGuidMsg").subscribe(data_sample_rate)
-            solar_panel.get_message("Out_PowerSourceMsg").subscribe(data_sample_rate)
-            reaction_wheels.get_message("Out_RWSpeedMsg").subscribe(data_sample_rate)
+            spacecraft.get_message("Out_EclipseMsg").subscribe(dataSampleRate)
+            navigator.get_message("Out_NavAttMsg").subscribe(dataSampleRate)
+            sunPointFsw.get_message("Out_AttGuidMsg").subscribe(dataSampleRate)
+            solarPanel.get_message("Out_PowerSourceMsg").subscribe(dataSampleRate)
+            reactionWheels.get_message("Out_RWSpeedMsg").subscribe(dataSampleRate)
 
             print("Simulation Configured")
 
             //Execute the simulation to be ticked
-            print("Tick the simulation for:",tick_iterations,"steps with a step size of", tick_size,"(",tick_size*Double(tick_iterations),"seconds )" )
+            print("Tick the simulation for:",tickIterations,"steps with a step size of", tickSize,"(",tickSize*Double(tickIterations),"seconds )" )
 
             for i in 0..<10
             {
-                sim.tick(tick_size,tick_iterations/10)
+                sim.tick(tickSize,tickIterations/10)
                 print("Percentage Progress:", i*10)
             }
             print("Percentage Progress: 100")
@@ -131,13 +131,13 @@ public struct SwiftNominalpyExample {
             //Get the data from the simulation
             print("Exporting data")
 
-            let data_power = solar_panel.get_message("Out_PowerSourceMsg").fetch("Power")
+            let dataPower = solarPanel.get_message("Out_PowerSourceMsg").fetch("Power")
 
             do
             {
                 if let outputPath = ProcessInfo.processInfo.environment["NOMINAL_API_OUTPUT_PATH"]
                 {
-                    try String(json.dumps(data_power))!.write(toFile: "\(outputPath)/Data_solar_panel_Power.txt", atomically: true, encoding: .utf8)
+                    try String(jsonModule.dumps(dataPower))!.write(toFile: "\(outputPath)/Data_solar_panel_Power.txt", atomically: true, encoding: .utf8)
                     print("Power Data exported")
                 }
                 else
@@ -150,13 +150,13 @@ public struct SwiftNominalpyExample {
                 print("Error writing data to file")
             }
 
-			//Export the data in a format supported by Gilmour Space's GOATS Software
-            for entry in data_power {
-                let time = entry["time"] ?? py.None
-                let powerData = entry["data"] ?? py.None
-                if time != py.None, powerData != py.None {
-                    let power = powerData["Power"] ?? py.None
-                    if power != py.None {
+            //Export the data in a format supported by Gilmour Space's GOATS Software
+            for entry in dataPower {
+                let time = entry["time"] ?? builtinsModule.None
+                let powerData = entry["data"] ?? builtinsModule.None
+                if time != builtinsModule.None, powerData != builtinsModule.None {
+                    let power = powerData["Power"] ?? builtinsModule.None
+                    if power != builtinsModule.None {
                         print("[[GIMP_Client Result]] Power|\(power)|\(time)")
                     }
                 }
@@ -169,4 +169,4 @@ public struct SwiftNominalpyExample {
             print("NOMINAL_API_KEY Environment Variable not set.")
         }
     }
-}
+    }
