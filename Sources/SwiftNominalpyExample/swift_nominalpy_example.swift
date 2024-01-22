@@ -34,7 +34,7 @@ public struct SwiftNominalpyExample {
 
 
         let tick_size=0.05
-        let tick_iterations=20000
+        let tick_iterations=2000
         let data_sample_rate=5.0
 
         // Set up the API access
