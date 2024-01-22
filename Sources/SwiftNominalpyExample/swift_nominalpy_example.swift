@@ -30,10 +30,12 @@ public struct SwiftNominalpyExample {
         let datetime = Python.import("datetime")
         let np = Python.import("numpy")
         let json = Python.import("json")
+        let py = Python.import("builtins")
+
 
         let tick_size=0.05
         let tick_iterations=20000
-		let data_sample_rate=5.0
+        let data_sample_rate=5.0
 
         // Set up the API access
         let url = "https://api.nominalsys.com"
@@ -119,22 +121,23 @@ public struct SwiftNominalpyExample {
             //Execute the simulation to be ticked
             print("Tick the simulation for:",tick_iterations,"steps with a step size of", tick_size,"(",tick_size*Double(tick_iterations),"seconds )" )
 
-			for i in 0..<10
-			{
-            	sim.tick(tick_size,tick_iterations/10)
-				print("Percentage Progress:", i*10)
-			}
-			print("Percentage Progress: 100")
+            for i in 0..<10
+            {
+                sim.tick(tick_size,tick_iterations/10)
+                print("Percentage Progress:", i*10)
+            }
+            print("Percentage Progress: 100")
 
             //Get the data from the simulation
             print("Exporting data")
+
+            let data_power = solar_panel.get_message("Out_PowerSourceMsg").fetch("Power")
 
             do
             {
                 if let outputPath = ProcessInfo.processInfo.environment["NOMINAL_API_OUTPUT_PATH"]
                 {
-                    let data_power = String(json.dumps(solar_panel.get_message("Out_PowerSourceMsg").fetch("Power")))!
-                    try data_power.write(toFile: "\(outputPath)/Data_solar_panel_Power.txt", atomically: true, encoding: .utf8)
+                    try String(json.dumps(data_power))!.write(toFile: "\(outputPath)/Data_solar_panel_Power.txt", atomically: true, encoding: .utf8)
                     print("Power Data exported")
                 }
                 else
@@ -145,6 +148,18 @@ public struct SwiftNominalpyExample {
             catch
             {
                 print("Error writing data to file")
+            }
+
+			//Export the data in a format supported by Gilmour Space's GOATS Software
+            for entry in data_power {
+                let time = entry["time"] ?? py.None
+                let powerData = entry["data"] ?? py.None
+                if time != py.None, powerData != py.None {
+                    let power = powerData["Power"] ?? py.None
+                    if power != py.None {
+                        print("[[GIMP_Client Result]] Power|\(power)|\(time)")
+                    }
+                }
             }
 
             print("Simulation Complete")
