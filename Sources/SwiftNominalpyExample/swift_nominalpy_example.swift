@@ -47,6 +47,7 @@
 
             // Connect to the Nominal API
             let auth: PythonObject = credentialsModule.Credentials(url,port,apiKey)
+            print("Nominal API Credentials Created. Attempting Connection ...")
             let sim: PythonObject = simulationModule.Simulation(auth)
             print("Connected to Nominal API")
 
@@ -54,7 +55,9 @@
             //Configure the Universe with an epoch
             let types = nominalpyModule.types
             let universe = sim.get_system(types.UNIVERSE, Epoch: datetimeModule.datetime(2022, 1, 1))
-
+	    print("Universe Configured")
+            print("Configuring Spacecraft")
+            
             //Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
             let orbit: PythonObject = astroModule.classical_to_vector_elements(6671, inclination: 35, true_anomaly: 16)
 
@@ -116,6 +119,7 @@
             solarPanel.get_message("Out_PowerSourceMsg").subscribe(dataSampleRate)
             reactionWheels.get_message("Out_RWSpeedMsg").subscribe(dataSampleRate)
 
+       	    print("Spacecraft Configured")
             print("Simulation Configured")
 
             //Execute the simulation to be ticked
